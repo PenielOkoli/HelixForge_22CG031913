@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>HelixForge v2 — Sequence Intelligence Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet"/>
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Three.js for 3D helix -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   HELIXFORGE v2 — DESIGN TOKENS
+═══════════════════════════════════════════════════════════════ */
+:root{
+  --void:#060b10;--deep:#0c1219;--surf:#111b25;--raised:#172230;
+  --rim:#1c2d3e;--mute:#385060;--prose:#7aa0b8;--lite:#c2dcea;--bright:#eaf4ff;
+  --dna:#00e5ff;--rna:#ff6b35;--amino:#a8ff78;--prot:#ffd700;
+  --err:#ff4d6d;--warn:#ffb703;--ok:#4ade80;
+  --gd:0 0 24px #00e5ff44,0 0 70px #00e5ff14;
+  --gr:0 0 24px #ff6b3544,0 0 70px #ff6b3514;
+  --t:.22s cubic-bezier(.4,0,.2,1);
+  --r4:4px;--r8:8px;--r12:12px;--r20:20px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Syne',sans-serif;background:var(--void);color:var(--lite);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none}
+body::after{content:'';position:fixed;inset:0;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);
+  pointer-events:none}
+
+/* ── SHELL ── */
+.shell{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 1.5rem 6rem}
+
+/* ── MASTHEAD ── */
+.masthead{display:flex;align-items:flex-start;justify-content:space-between;
+  padding:2rem 0 2.5rem;border-bottom:1px solid var(--rim);margin-bottom:0}
+.brand-word{font-weight:800;font-size:clamp(1.8rem,3.5vw,2.8rem);
+  letter-spacing:-.02em;color:var(--bright)}
+.brand-word span{color:var(--dna)}
+.brand-sub{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--mute);
+  letter-spacing:.14em;text-transform:uppercase;margin-top:.25rem}
+.masthead-meta{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--mute);
+  text-align:right;line-height:1.9;border:1px solid var(--rim);padding:.5rem .8rem;
+  border-radius:var(--r8)}
+
+/* ── TICKER ── */
+.ticker{overflow:hidden;white-space:nowrap;border-top:1px solid var(--rim);
+  border-bottom:1px solid var(--rim);padding:.45rem 0;margin-bottom:2rem}
+.ticker-inner{display:inline-block;animation:scroll-x 28s linear infinite;
+  font-family:'Syne Mono',monospace;font-size:.7rem;color:var(--mute);letter-spacing:.1em}
+@keyframes scroll-x{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap}
+.nav-tab{font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;
+  letter-spacing:.08em;text-transform:uppercase;padding:.5rem 1rem;
+  border-radius:var(--r8);border:1px solid var(--rim);background:transparent;
+  color:var(--prose);cursor:pointer;transition:all var(--t)}
+.nav-tab:hover{border-color:var(--mute);color:var(--lite)}
+.nav-tab.on{background:rgba(0,229,255,.1);border-color:var(--dna);color:var(--dna);
+  box-shadow:0 0 14px rgba(0,229,255,.2)}
+
+/* ── TAB VIEWS ── */
+.tab-view{display:none}.tab-view.on{display:block}
+
+/* ── PANEL ── */
+.panel{background:var(--surf);border:1px solid var(--rim);border-radius:var(--r20);
+  margin-bottom:1.25rem;overflow:hidden;transition:border-color var(--t)}
+.panel:hover{border-color:var(--mute)}
+.phead{display:flex;align-items:center;gap:.7rem;padding:.9rem 1.3rem;
+  background:var(--raised);border-bottom:1px solid var(--rim)}
+.pstep{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--mute);
+  background:var(--rim);padding:.18rem .45rem;border-radius:var(--r4);letter-spacing:.1em}
+.ptitle{font-weight:700;font-size:.82rem;color:var(--bright);
+  text-transform:uppercase;letter-spacing:.08em}
+.pstatus{margin-left:auto;width:7px;height:7px;border-radius:50%;
+  background:var(--rim);transition:all var(--t)}
+.pstatus.live{background:var(--amino);box-shadow:0 0 8px var(--amino)}
+.pstatus.spin-dot{background:var(--dna);box-shadow:0 0 8px var(--dna);
+  animation:pulse-s 1.2s ease-in-out infinite}
+@keyframes pulse-s{0%,100%{opacity:1}50%{opacity:.3}}
+.pbody{padding:1.3rem}
+
+/* ── RESULT REVEAL ── */
+.reveal{display:none;animation:fadein .4s ease forwards}
+.reveal.on{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── BUTTONS ── */
+.btn{font-family:'Syne',sans-serif;font-weight:700;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;padding:.52rem 1rem;
+  border-radius:var(--r8);border:1px solid transparent;cursor:pointer;
+  transition:all var(--t);position:relative;overflow:hidden}
+.btn-prime{background:var(--dna);color:var(--void);border-color:var(--dna);
+  box-shadow:0 0 18px rgba(0,229,255,.3)}
+.btn-prime:hover{box-shadow:0 0 30px rgba(0,229,255,.55);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--prose);border-color:var(--rim)}
+.btn-ghost:hover{border-color:var(--mute);color:var(--lite)}
+.btn-pdf{background:rgba(255,215,0,.08);color:var(--prot);border-color:rgba(255,215,0,.35)}
+.btn-pdf:hover{background:rgba(255,215,0,.14);box-shadow:0 0 16px rgba(255,215,0,.2)}
+.btn-danger{background:transparent;color:var(--err);border-color:var(--err)}
+.btn-danger:hover{background:rgba(255,77,109,.1)}
+.btn:disabled{opacity:.3;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+
+/* ── INPUT AREA ── */
+.drop-wrap{border:2px dashed var(--rim);border-radius:var(--r12);padding:1.1rem;
+  transition:all var(--t);position:relative;margin-bottom:.8rem}
+.drop-wrap.over{border-color:var(--dna);background:rgba(0,229,255,.04);box-shadow:var(--gd)}
+.seq-field{width:100%;background:transparent;border:none;outline:none;resize:none;
+  font-family:'Syne Mono',monospace;font-size:.83rem;color:var(--bright);
+  line-height:1.65;min-height:100px;letter-spacing:.1em}
+.seq-field::placeholder{color:var(--mute);font-style:italic}
+.drop-ghost{display:none;position:absolute;inset:0;border-radius:var(--r12);
+  background:rgba(0,229,255,.06);align-items:center;justify-content:center;
+  flex-direction:column;gap:.4rem;pointer-events:none}
+.drop-wrap.over .drop-ghost{display:flex}
+.drop-ghost-ico{font-size:1.8rem}
+.drop-ghost-txt{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--dna);letter-spacing:.1em}
+.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem}
+.char-count{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--mute);text-align:right;margin-top:.3rem}
+#hfx-file{display:none}
+
+/* ── STRAND OPTS ── */
+.strand-opts{display:none;gap:.7rem;margin-top:.9rem;animation:fadein .3s ease forwards}
+.strand-opts.show{display:flex}
+.sopt{flex:1;padding:.85rem;border:1px solid var(--rim);border-radius:var(--r12);
+  cursor:pointer;transition:all var(--t);text-align:center;background:var(--raised)}
+.sopt:hover{border-color:var(--dna);background:rgba(0,229,255,.05)}
+.sopt.picked{border-color:var(--dna);background:rgba(0,229,255,.08);box-shadow:var(--gd)}
+.sopt-lbl{font-weight:700;font-size:.8rem;color:var(--bright);margin-bottom:.2rem}
+.sopt-sub{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--mute);letter-spacing:.06em}
+
+/* ── SEQ STRIP ── */
+.sstrip{background:var(--deep);border:1px solid var(--rim);border-radius:var(--r12);
+  padding:.9rem 1.1rem;margin:.7rem 0;overflow-x:auto}
+.sstrip-lbl{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--mute);
+  letter-spacing:.13em;text-transform:uppercase;margin-bottom:.4rem}
+.sstrip-val{font-family:'Syne Mono',monospace;font-size:.82rem;line-height:1.8;
+  word-break:break-all;letter-spacing:.06em}
+
+/* ── NT COLOURS ── */
+.nA{color:#00e5ff}.nT{color:#ff6b35}.nG{color:#a8ff78}.nC{color:#ffd700}.nU{color:#ff8c42}
+
+/* ── VERDICT BADGE ── */
+.verdict{display:inline-flex;align-items:center;gap:.45rem;padding:.38rem .85rem;
+  border-radius:999px;font-family:'Space Mono',monospace;font-size:.78rem;
+  font-weight:700;letter-spacing:.06em;margin-bottom:.9rem}
+.verdict.dna{background:rgba(0,229,255,.1);color:var(--dna);border:1px solid rgba(0,229,255,.3);box-shadow:var(--gd)}
+.verdict.rna{background:rgba(255,107,53,.1);color:var(--rna);border:1px solid rgba(255,107,53,.3);box-shadow:var(--gr)}
+.verdict.bad{background:rgba(255,77,109,.1);color:var(--err);border:1px solid rgba(255,77,109,.3)}
+.vdot{width:7px;height:7px;border-radius:50%;background:currentColor;
+  animation:pulse-s 1.3s ease-in-out infinite}
+
+/* ── EXPLAINER ── */
+.xplain{background:rgba(0,229,255,.03);border-left:3px solid var(--dna);
+  border-radius:0 var(--r8) var(--r8) 0;padding:.75rem 1rem;margin-top:1rem}
+.xplain.rna{border-left-color:var(--rna)}
+.xplain.aa{border-left-color:var(--amino)}
+.xplain.prot{border-left-color:var(--prot)}
+.xlbl{font-family:'Space Mono',monospace;font-size:.56rem;color:var(--mute);
+  letter-spacing:.14em;text-transform:uppercase;margin-bottom:.35rem}
+.xtxt{font-size:.8rem;color:var(--prose);line-height:1.8}
+.xtxt strong{color:var(--lite)}
+
+/* ── ERROR BOX ── */
+.errbox{background:rgba(255,77,109,.06);border:1px solid rgba(255,77,109,.25);
+  border-radius:var(--r8);padding:.75rem 1rem;color:var(--err);
+  font-family:'Space Mono',monospace;font-size:.76rem;letter-spacing:.04em}
+
+/* ── GC STATS ── */
+.gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.6rem;margin-bottom:1rem}
+.gc-card{background:var(--deep);border:1px solid var(--rim);border-radius:var(--r12);padding:.75rem 1rem}
+.gc-lbl{font-family:'Space Mono',monospace;font-size:.56rem;color:var(--mute);
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:.3rem}
+.gc-val{font-size:1.2rem;font-weight:700;color:var(--dna)}
+.gc-bar-wrap{height:6px;background:var(--rim);border-radius:999px;margin-top:.5rem;overflow:hidden}
+.gc-bar{height:100%;background:var(--dna);border-radius:999px;transition:width .8s ease}
+
+/* ── CODON GRID ── */
+.codon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.45rem;margin:.7rem 0}
+.codon-cell{background:var(--deep);border:1px solid var(--rim);border-radius:var(--r4);padding:.55rem .75rem;transition:border-color var(--t)}
+.codon-cell:hover{border-color:var(--mute)}
+.codon-cell.cs{border-color:rgba(168,255,120,.4)}
+.codon-cell.cx{border-color:rgba(255,77,109,.4)}
+.codon-cell.off{opacity:.45}
+.ctri{font-family:'Syne Mono',monospace;font-size:.88rem;letter-spacing:.1em;margin-bottom:.2rem}
+.cname{font-size:.68rem;color:var(--prose);font-weight:600}
+.cabb{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--mute);letter-spacing:.05em}
+
+/* ── AA BEADS ── */
+.aa-chain{display:flex;flex-wrap:wrap;gap:.4rem;margin:.8rem 0}
+.aa-bead{display:flex;flex-direction:column;align-items:center;
+  background:var(--deep);border:1px solid var(--rim);border-radius:var(--r8);
+  padding:.45rem .55rem;min-width:54px;cursor:default;
+  transition:transform var(--t),box-shadow var(--t)}
+.aa-bead:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.4);border-color:var(--mute)}
+.ab3{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--amino);font-weight:700;letter-spacing:.05em}
+.ab1{font-family:'Syne Mono',monospace;font-size:1.05rem;color:var(--bright);line-height:1;margin:.12rem 0}
+.abf{font-size:.52rem;color:var(--mute);text-align:center;line-height:1.3}
+
+/* ── PROTEIN STATS ── */
+.pstat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.55rem;margin:.8rem 0}
+.pstat{background:var(--deep);border:1px solid var(--rim);border-radius:var(--r12);padding:.75rem 1rem}
+.pslbl{font-family:'Space Mono',monospace;font-size:.56rem;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.25rem}
+.psval{font-size:1.05rem;font-weight:700;color:var(--prot)}
+
+/* ── DB CARDS ── */
+.db-card{background:var(--deep);border:1px solid rgba(255,215,0,.18);border-radius:var(--r12);padding:.9rem 1.1rem;margin:.55rem 0}
+.db-tag{display:inline-block;font-family:'Space Mono',monospace;font-size:.56rem;
+  letter-spacing:.08em;color:var(--warn);background:rgba(255,183,3,.1);
+  border:1px solid rgba(255,183,3,.25);border-radius:4px;padding:.12rem .38rem;margin-bottom:.45rem}
+.db-name{font-weight:700;color:var(--prot);margin-bottom:.2rem}
+.db-org{font-family:'Space Mono',monospace;font-size:.68rem;color:var(--mute);font-style:italic;margin-bottom:.4rem}
+.db-desc{font-size:.78rem;color:var(--prose);line-height:1.65}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--rim);
+  border-top-color:var(--dna);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.35rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── BLAST VIEWER ── */
+.blast-wrap{font-family:'Syne Mono',monospace;font-size:.75rem;line-height:1.9;overflow-x:auto;margin:.7rem 0}
+.blast-row{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.15rem}
+.blast-label{color:var(--mute);min-width:80px;flex-shrink:0;letter-spacing:.05em;font-size:.65rem;padding-top:.1rem}
+.blast-seq{letter-spacing:.14em;word-break:break-all}
+.blast-match{letter-spacing:.14em;color:var(--amino)}
+.blast-gap{color:var(--err)}
+.blast-info{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem}
+.blast-badge{font-family:'Space Mono',monospace;font-size:.65rem;padding:.2rem .6rem;
+  border-radius:999px;background:var(--deep);border:1px solid var(--rim);color:var(--prose)}
+.blast-badge.hi{border-color:var(--amino);color:var(--amino)}
+.blast-badge.mid{border-color:var(--warn);color:var(--warn)}
+.blast-badge.lo{border-color:var(--err);color:var(--err)}
+
+/* ── 3D HELIX CANVAS ── */
+.helix-wrap{position:relative;width:100%;height:360px;border-radius:var(--r12);
+  overflow:hidden;border:1px solid var(--rim);background:var(--deep);margin:.9rem 0}
+#helixCanvas{width:100%!important;height:100%!important;display:block}
+.helix-legend{display:flex;gap:1rem;margin-top:.6rem;flex-wrap:wrap}
+.helix-leg-item{display:flex;align-items:center;gap:.4rem;font-family:'Space Mono',monospace;font-size:.65rem;color:var(--prose)}
+.helix-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.helix-controls{display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap}
+
+/* ── DIVIDER / HELPERS ── */
+.divider{height:1px;background:var(--rim);margin:1rem 0}
+.sec-lbl{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--mute);
+  letter-spacing:.14em;text-transform:uppercase;margin-bottom:.65rem}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+
+/* ── PIPELINE TRACK ── */
+.pipeline{display:flex;gap:0;margin:2rem 0 1.5rem;overflow-x:auto;padding-bottom:.4rem}
+.pnode{display:flex;flex-direction:column;align-items:center;flex:1;min-width:72px;position:relative}
+.pnode:not(:last-child)::after{content:'';position:absolute;top:13px;
+  left:calc(50% + 13px);right:calc(-50% + 13px);height:1px;background:var(--rim);z-index:0}
+.pnode.done:not(:last-child)::after{background:var(--dna);opacity:.5}
+.porb{width:26px;height:26px;border-radius:50%;border:1px solid var(--rim);
+  background:var(--surf);display:flex;align-items:center;justify-content:center;
+  z-index:1;position:relative;font-family:'Space Mono',monospace;
+  font-size:.58rem;color:var(--mute);transition:all var(--t)}
+.pnode.done .porb{border-color:var(--dna);background:rgba(0,229,255,.1);color:var(--dna);box-shadow:0 0 10px rgba(0,229,255,.3)}
+.pnode.active .porb{border-color:var(--amino);animation:porb-pulse 1s ease-in-out infinite}
+@keyframes porb-pulse{0%,100%{box-shadow:0 0 8px rgba(168,255,120,.4)}50%{box-shadow:0 0 20px rgba(168,255,120,.7)}}
+.plbl{font-size:.58rem;color:var(--mute);text-align:center;margin-top:.35rem;letter-spacing:.04em;line-height:1.3}
+.pnode.done .plbl{color:var(--prose)}
+
+@media(max-width:640px){
+  .masthead{flex-direction:column;gap:.8rem}
+  .strand-opts{flex-direction:column}
+  .pstat-grid{grid-template-columns:1fr 1fr}
+  .gc-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div>
+    <div class="brand-word">Helix<span>Forge</span> <span style="font-size:.5em;color:var(--mute)">v2</span></div>
+    <div class="brand-sub">// Sequence Intelligence Engine · Netlify Edition</div>
+  </div>
+  <div class="masthead-meta">CSC 442 — Computational Biology<br>DNA &amp; RNA Sequence Analyser<br>2024/2025 · Second Semester</div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">ATCGATCGATCG · AUGCAUGUAG · GCUAGCUAGC · TTACGGCATG · BLAST-ALIGN · GC-CONTENT · 3D-HELIX · PDF-EXPORT · ATCGATCGATCG · AUGCAUGUAG · GCUAGCUAGC · TTACGGCATG · BLAST-ALIGN · GC-CONTENT · 3D-HELIX · PDF-EXPORT ·&nbsp;</div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <button class="nav-tab on" onclick="switchTab('analyse',this)">⚡ Analyse</button>
+  <button class="nav-tab" onclick="switchTab('helix3d',this)">🧬 3D Helix</button>
+  <button class="nav-tab" onclick="switchTab('blast',this)">🔍 BLAST Align</button>
+  <button class="nav-tab" onclick="switchTab('gcstats',this)">📊 GC Stats</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TAB: ANALYSE
+══════════════════════════════════════════════════ -->
+<div class="tab-view on" id="tab-analyse">
+
+  <!-- PIPELINE PROGRESS -->
+  <div class="pipeline">
+    <div class="pnode" id="pn-input"><div class="porb">01</div><div class="plbl">Input</div></div>
+    <div class="pnode" id="pn-detect"><div class="porb">02</div><div class="plbl">Detect</div></div>
+    <div class="pnode" id="pn-tx"><div class="porb">03</div><div class="plbl">Transcribe</div></div>
+    <div class="pnode" id="pn-tl"><div class="porb">04</div><div class="plbl">Translate</div></div>
+    <div class="pnode" id="pn-aa"><div class="porb">05</div><div class="plbl">Amino<br>Chain</div></div>
+    <div class="pnode" id="pn-prot"><div class="porb">06</div><div class="plbl">Protein &amp;<br>DB</div></div>
+  </div>
+
+  <!-- STEP 01 INPUT -->
+  <div class="panel">
+    <div class="phead">
+      <span class="pstep">STEP·01</span>
+      <span class="ptitle">Sequence Input</span>
+      <span class="pstatus live" id="st-input"></span>
+    </div>
+    <div class="pbody">
+      <div class="toolbar">
+        <button class="btn btn-ghost" onclick="pickFile()">⬆ File</button>
+        <button class="btn btn-ghost" onclick="pasteboard()">⎘ Paste</button>
+        <button class="btn btn-ghost" onclick="tryDNA()">Try DNA</button>
+        <button class="btn btn-ghost" onclick="tryRNA()">Try RNA</button>
+        <button class="btn btn-danger" onclick="wipeAll()" style="margin-left:auto">✕ Clear</button>
+        <button class="btn btn-pdf" id="pdf-btn" onclick="exportPDF()" disabled>⬇ Export PDF</button>
+      </div>
+      <div class="drop-wrap" id="dropzone"
+           ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+        <textarea class="seq-field" id="seqin"
+          placeholder="Paste a DNA or RNA sequence… or drag &amp; drop a .fasta / .txt file"
+          oninput="onSeqInput()" spellcheck="false"></textarea>
+        <div class="drop-ghost">
+          <div class="drop-ghost-ico">🧬</div>
+          <div class="drop-ghost-txt">DROP TO LOAD</div>
+        </div>
+      </div>
+      <div class="char-count" id="ccount">— nucleotides</div>
+      <input type="file" id="hfx-file" accept=".txt,.fasta,.fa,.seq" onchange="onFileChosen(event)"/>
+      <button class="btn btn-prime" id="run-btn" onclick="runPipeline()" disabled style="margin-top:.6rem">⚡ Analyse Sequence</button>
+    </div>
+  </div>
+
+  <!-- STEP 02 DETECT -->
+  <div class="panel reveal" id="p-detect">
+    <div class="phead">
+      <span class="pstep">STEP·02</span><span class="ptitle">Detection</span>
+      <span class="pstatus" id="st-detect"></span>
+    </div>
+    <div class="pbody" id="b-detect"></div>
+  </div>
+
+  <!-- STEP 02b STRAND -->
+  <div class="panel reveal" id="p-strand">
+    <div class="phead">
+      <span class="pstep">STEP·02b</span><span class="ptitle">Strand Type</span>
+      <span class="pstatus" id="st-strand"></span>
+    </div>
+    <div class="pbody">
+      <p style="font-size:.8rem;color:var(--prose);margin-bottom:.9rem;line-height:1.7">
+        DNA is double-stranded. Select which strand you have provided so HelixForge can transcribe correctly.
+      </p>
+      <div class="strand-opts show" id="strand-opts">
+        <div class="sopt" id="so-nt" onclick="pickStrand('non-template')">
+          <div class="sopt-lbl">Non-Template</div>
+          <div class="sopt-sub">Coding · Sense · 5′→3′</div>
+        </div>
+        <div class="sopt" id="so-t" onclick="pickStrand('template')">
+          <div class="sopt-lbl">Template</div>
+          <div class="sopt-sub">Antisense · 3′→5′</div>
+        </div>
+      </div>
+      <div class="xplain">
+        <div class="xlbl">// Plain English</div>
+        <div class="xtxt">The <strong>non-template (coding)</strong> strand has the same sequence as the mRNA — just T→U. The <strong>template</strong> strand is the mirror that RNA polymerase actually reads, so HelixForge reverses and complements it first. Pick whichever you have.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 03 TRANSCRIPTION -->
+  <div class="panel reveal" id="p-tx">
+    <div class="phead">
+      <span class="pstep">STEP·03</span><span class="ptitle">Transcription</span>
+      <span class="pstatus" id="st-tx"></span>
+    </div>
+    <div class="pbody" id="b-tx"></div>
+  </div>
+
+  <!-- STEP 04 TRANSLATION -->
+  <div class="panel reveal" id="p-tl">
+    <div class="phead">
+      <span class="pstep">STEP·04</span><span class="ptitle">Translation</span>
+      <span class="pstatus" id="st-tl"></span>
+    </div>
+    <div class="pbody" id="b-tl"></div>
+  </div>
+
+  <!-- STEP 05 AMINO CHAIN -->
+  <div class="panel reveal" id="p-aa">
+    <div class="phead">
+      <span class="pstep">STEP·05</span><span class="ptitle">Polypeptide Chain</span>
+      <span class="pstatus" id="st-aa"></span>
+    </div>
+    <div class="pbody" id="b-aa"></div>
+  </div>
+
+  <!-- STEP 06 PROTEIN -->
+  <div class="panel reveal" id="p-prot">
+    <div class="phead">
+      <span class="pstep">STEP·06</span><span class="ptitle">Protein &amp; Database</span>
+      <span class="pstatus" id="st-prot"></span>
+    </div>
+    <div class="pbody" id="b-prot"></div>
+  </div>
+
+</div><!-- /tab-analyse -->
+
+<!-- ══════════════════════════════════════════════════
+     TAB: 3D HELIX
+══════════════════════════════════════════════════ -->
+<div class="tab-view" id="tab-helix3d">
+  <div class="panel">
+    <div class="phead"><span class="pstep">VIZ</span><span class="ptitle">3D Double Helix</span></div>
+    <div class="pbody">
+      <p style="font-size:.8rem;color:var(--prose);margin-bottom:.9rem;line-height:1.7">
+        Interactive 3D model of the B-form DNA double helix. Drag to rotate · scroll to zoom. Bases are coloured by nucleotide identity.
+      </p>
+      <div class="helix-wrap">
+        <canvas id="helixCanvas"></canvas>
+      </div>
+      <div class="helix-legend">
+        <div class="helix-leg-item"><div class="helix-leg-dot" style="background:#00e5ff"></div>Adenine (A)</div>
+        <div class="helix-leg-item"><div class="helix-leg-dot" style="background:#ff6b35"></div>Thymine (T)</div>
+        <div class="helix-leg-item"><div class="helix-leg-dot" style="background:#a8ff78"></div>Guanine (G)</div>
+        <div class="helix-leg-item"><div class="helix-leg-dot" style="background:#ffd700"></div>Cytosine (C)</div>
+        <div class="helix-leg-item"><div class="helix-leg-dot" style="background:#aaaaaa"></div>Backbone</div>
+      </div>
+      <div class="helix-controls">
+        <button class="btn btn-ghost" onclick="helixAutoRotate()">⟳ Auto-Rotate</button>
+        <button class="btn btn-ghost" onclick="helixReset()">⌂ Reset View</button>
+      </div>
+      <div class="xplain" style="margin-top:1rem">
+        <div class="xlbl">// What You're Seeing</div>
+        <div class="xtxt">
+          This model shows <strong>B-form DNA</strong> — the most common conformation in living cells, discovered by Watson &amp; Crick in 1953. The two coloured ribbons are the <strong>sugar-phosphate backbones</strong>; each sphere between them is a <strong>base pair</strong> holding the two strands together via hydrogen bonds. There are approximately 10.5 base pairs per complete helical turn, and the helix is roughly 2 nm wide. The sequence shown here is taken from your most recent analysis (or a demo sequence if you haven't run one yet).
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TAB: BLAST ALIGN
+══════════════════════════════════════════════════ -->
+<div class="tab-view" id="tab-blast">
+  <div class="panel">
+    <div class="phead"><span class="pstep">BLAST</span><span class="ptitle">Alignment Viewer</span></div>
+    <div class="pbody">
+      <p style="font-size:.8rem;color:var(--prose);margin-bottom:1rem;line-height:1.7">
+        Enter two sequences to align. HelixForge uses the <strong>Smith-Waterman</strong> local alignment algorithm (the same algorithm that powers NCBI BLAST's core scoring) with match=+2, mismatch=−1, gap=−2.
+      </p>
+      <div class="sec-lbl">// Sequence A</div>
+      <textarea id="blast-a" rows="3" style="width:100%;background:var(--deep);border:1px solid var(--rim);border-radius:var(--r8);padding:.7rem;color:var(--bright);font-family:'Syne Mono',monospace;font-size:.8rem;letter-spacing:.08em;outline:none;resize:vertical" placeholder="Paste first sequence (DNA or RNA)…" spellcheck="false"></textarea>
+      <div class="sec-lbl" style="margin-top:.8rem">// Sequence B</div>
+      <textarea id="blast-b" rows="3" style="width:100%;background:var(--deep);border:1px solid var(--rim);border-radius:var(--r8);padding:.7rem;color:var(--bright);font-family:'Syne Mono',monospace;font-size:.8rem;letter-spacing:.08em;outline:none;resize:vertical" placeholder="Paste second sequence (DNA or RNA)…" spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-prime" onclick="runBLAST()">▶ Run Alignment</button>
+        <button class="btn btn-ghost" onclick="loadBlastDemo()">Load Demo</button>
+      </div>
+      <div id="blast-out" style="margin-top:1rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TAB: GC STATS
+══════════════════════════════════════════════════ -->
+<div class="tab-view" id="tab-gcstats">
+  <div class="panel">
+    <div class="phead"><span class="pstep">STATS</span><span class="ptitle">GC Content &amp; Sequence Statistics</span></div>
+    <div class="pbody">
+      <p style="font-size:.8rem;color:var(--prose);margin-bottom:1rem;line-height:1.7">
+        Paste any DNA or RNA sequence to get detailed nucleotide composition and bioinformatics metrics.
+      </p>
+      <textarea id="gc-input" rows="4" style="width:100%;background:var(--deep);border:1px solid var(--rim);border-radius:var(--r8);padding:.7rem;color:var(--bright);font-family:'Syne Mono',monospace;font-size:.8rem;letter-spacing:.08em;outline:none;resize:vertical" placeholder="Paste sequence here…" spellcheck="false" oninput="runGCStats()"></textarea>
+      <p style="font-size:.68rem;color:var(--mute);font-family:'Space Mono',monospace;margin-top:.3rem">Stats update live as you type</p>
+      <div id="gc-out" style="margin-top:1rem"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.shell -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   HELIXFORGE v2 — ENGINE
+   Architecture: IIFE-free flat module with namespaced fns
+   All variable/fn names unique to this codebase
+═══════════════════════════════════════════════════════ */
+'use strict';
+
+/* ── ENGINE STATE ───────────────────────────────────── */
+const hfx = {
+  rawSeq:'', seqKind:null, strandMode:null,
+  mRNASeq:'', codonMap:[], aaArray:[], protSeq:'',
+  analysisReady:false,
+};
+
+/* ── CODON LOOKUP ───────────────────────────────────── */
+const CODEX = {
+  UUU:['Phenylalanine','Phe','F'],UUC:['Phenylalanine','Phe','F'],
+  UUA:['Leucine','Leu','L'],UUG:['Leucine','Leu','L'],
+  CUU:['Leucine','Leu','L'],CUC:['Leucine','Leu','L'],CUA:['Leucine','Leu','L'],CUG:['Leucine','Leu','L'],
+  AUU:['Isoleucine','Ile','I'],AUC:['Isoleucine','Ile','I'],AUA:['Isoleucine','Ile','I'],
+  AUG:['Methionine','Met','M'],
+  GUU:['Valine','Val','V'],GUC:['Valine','Val','V'],GUA:['Valine','Val','V'],GUG:['Valine','Val','V'],
+  UCU:['Serine','Ser','S'],UCC:['Serine','Ser','S'],UCA:['Serine','Ser','S'],UCG:['Serine','Ser','S'],
+  CCU:['Proline','Pro','P'],CCC:['Proline','Pro','P'],CCA:['Proline','Pro','P'],CCG:['Proline','Pro','P'],
+  ACU:['Threonine','Thr','T'],ACC:['Threonine','Thr','T'],ACA:['Threonine','Thr','T'],ACG:['Threonine','Thr','T'],
+  GCU:['Alanine','Ala','A'],GCC:['Alanine','Ala','A'],GCA:['Alanine','Ala','A'],GCG:['Alanine','Ala','A'],
+  UAU:['Tyrosine','Tyr','Y'],UAC:['Tyrosine','Tyr','Y'],
+  UAA:['[STOP]','Stop','*'],UAG:['[STOP]','Stop','*'],UGA:['[STOP]','Stop','*'],
+  CAU:['Histidine','His','H'],CAC:['Histidine','His','H'],
+  CAA:['Glutamine','Gln','Q'],CAG:['Glutamine','Gln','Q'],
+  AAU:['Asparagine','Asn','N'],AAC:['Asparagine','Asn','N'],
+  AAA:['Lysine','Lys','K'],AAG:['Lysine','Lys','K'],
+  GAU:['Aspartic Acid','Asp','D'],GAC:['Aspartic Acid','Asp','D'],
+  GAA:['Glutamic Acid','Glu','E'],GAG:['Glutamic Acid','Glu','E'],
+  UGU:['Cysteine','Cys','C'],UGC:['Cysteine','Cys','C'],UGG:['Tryptophan','Trp','W'],
+  CGU:['Arginine','Arg','R'],CGC:['Arginine','Arg','R'],CGA:['Arginine','Arg','R'],CGG:['Arginine','Arg','R'],
+  AGU:['Serine','Ser','S'],AGC:['Serine','Ser','S'],AGA:['Arginine','Arg','R'],AGG:['Arginine','Arg','R'],
+  GGU:['Glycine','Gly','G'],GGC:['Glycine','Gly','G'],GGA:['Glycine','Gly','G'],GGG:['Glycine','Gly','G'],
+};
+const STOPS = new Set(['UAA','UAG','UGA']);
+const START = 'AUG';
+
+/* ── DOM HELPER ─────────────────────────────────────── */
+const $=id=>document.getElementById(id);
+
+/* ── NT COLOURING ───────────────────────────────────── */
+function ntColor(seq){
+  return seq.split('').map(b=>`<span class="n${b}">${b}</span>`).join('');
+}
+
+/* ── TAB SWITCHING ──────────────────────────────────── */
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('on'));
+  $('tab-'+name).classList.add('on');
+  btn.classList.add('on');
+  if(name==='helix3d') initHelix();
+}
+
+/* ── INPUT HANDLERS ─────────────────────────────────── */
+function onSeqInput(){
+  const raw=$('seqin').value.toUpperCase().replace(/\s+/g,'');
+  hfx.rawSeq=raw;
+  const n=raw.length;
+  $('ccount').textContent=n>0?`${n.toLocaleString()} nucleotide${n!==1?'s':''}`:'—';
+  $('run-btn').disabled=n<3;
+  pnMark('input',n>0?'done':'');
+}
+
+function pickFile(){$('hfx-file').click()}
+function onFileChosen(e){
+  const f=e.target.files[0]; if(!f)return;
+  readFile(f); e.target.value='';
+}
+function readFile(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    let txt=e.target.result.replace(/^>.*$/gm,'').trim();
+    $('seqin').value=txt; onSeqInput();
+  };
+  r.readAsText(f);
+}
+async function pasteboard(){
+  try{const t=await navigator.clipboard.readText();$('seqin').value=t;onSeqInput();}
+  catch{$('seqin').focus();}
+}
+
+const DEMO_DNA='ATGGTGAGCAAGGGCGAGGAGCTGTTCACCGGGGTGGTGCCCATCCTGGTCGAGCTGGACGGCGACGTAAACGGCCACAAGTTCAGCGTGTCCGGCGAGGGCGAGGGCGATGCCACCTACGGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCCGTGCCCTGGCCCACCCTCGTGACCACCTTCACCTACGGCGTGCAGTGCTTCAGCCGCTACCCCGACCACATGAAGCAGCACGACTTCTTCAAGTCCGCCATGCCCGAAGGCTACGTCCAGGAGCGCACCATCTTCTTCAAGGACGACGGCAACTACAAGACCCGCGCCGAGGTGAAGTTCGAGGGCGACACCCTGGTGAACCGCATCGAGCTGAAGGGCATCGACTTCAAGGAGGACGGCAACATCCTGGGGCACAAGCTGGAGTACAACTACAACAGCCACAACGTCTATATCATGGCCGACAAGCAGAAGAACGGCATCAAGGTGAACTTCAAGATCCGCCACAACATCGAGGACGGCAGCGTGCAGCTCGCCGACCACTACCAGCAGAACACCCCCATCGGCGACGGCCCCGTGCTGCTGCCCGACAACCACTACCTGAGCACACAGTCCGCCCTGAGCAAAGACCCCAACGAGAAGCGCGATCACATGGTCCTGCTGGAGTTCGTGACCGCCGCCGGGATCACTCTCGGCATGGACGAGCTGTACAAGTAA';
+const DEMO_RNA='AUGGUAGCUAAAGGGCGAGGAGCUGUUCACCGGGGUGAUGCCCAUCUAGGUCGAGCUGGACGGCGACGUAAACGGCCACAAGUUCAGCGUGUCCGGCGAGGGCGAGGGCGAUGCCACCUACGGCAAGCUGACCCUGAAGUUCAUCUGCACCACCGGCAAGCUGCCCGUGCCCUGGCCCACCCUCGUGACCACCUUCACCUACGGCGUGCAGUGCUUCAGCCGCUACCCCGACCACAUGAAGCAGCACGACUUCUUCAAGUCCGCCAUGCCCGAAGGCUACGUCCAGGAGCGCACCAUCUUCUUCAAGGACGACGGCAACUACAAGACCCGCGCCGAGGUGAAGUUCGAGGGCGACACCGUGGUAACCGCAUCGAGCUGAAGGGCAUCGACUUCAAGGAGGACGGCAACAUCCUGGGGCACAAGCUGGAGUACAACUACAACAGCCACAACGUCUAUAUCAUGGCCGACAAGCAGAAGAACGGCAUCAAGGUGAACUUCAAGAUCCGCCACAACAUCGAGGACGGCAGCGUGCAGCUCGCCGACCACUACCAGCAGAACACCCCCAUCGGCGACGGCCCCGUGCUGCUGCCCGACAACCACUACCUGAGCACACAGUCCGCCCUGAGCAAAGACCCCAACGAGAAGCGCGAUCACAUGGUCCUGCUGGAGUUCGUGACCGCCGCCGGGAUCACUCUCGGCAUGGACGAGCUGUACAAGUAA';
+function tryDNA(){$('seqin').value=DEMO_DNA;onSeqInput()}
+function tryRNA(){$('seqin').value=DEMO_RNA;onSeqInput()}
+
+function wipeAll(){
+  $('seqin').value=''; hfx.rawSeq=''; hfx.seqKind=null; hfx.strandMode=null;
+  onSeqInput();
+  ['p-detect','p-strand','p-tx','p-tl','p-aa','p-prot'].forEach(id=>$( id).classList.remove('on'));
+  ['detect','tx','tl','aa','prot'].forEach(k=>pnMark(k,''));
+  $('pdf-btn').disabled=true;
+  hfx.analysisReady=false;
+}
+
+/* ── DRAG & DROP ─────────────────────────────────────── */
+function dzOver(e){e.preventDefault();$('dropzone').classList.add('over')}
+function dzLeave(){$('dropzone').classList.remove('over')}
+function dzDrop(e){e.preventDefault();$('dropzone').classList.remove('over');const f=e.dataTransfer.files[0];if(f)readFile(f)}
+
+/* ── PIPELINE NODE ───────────────────────────────────── */
+function pnMark(key,state){
+  const el=$('pn-'+key); if(!el)return;
+  el.classList.remove('done','active');
+  if(state)el.classList.add(state);
+}
+function dotLive(id){const el=$(id);if(!el)return;el.className='pstatus live'}
+function dotSpin(id){const el=$(id);if(!el)return;el.className='pstatus spin-dot'}
+
+/* ── SEQUENCE DETECTION ─────────────────────────────── */
+function detectKind(seq){
+  if(!seq||seq.length<3)return'INVALID';
+  const hasT=seq.includes('T'), hasU=seq.includes('U');
+  if(hasT&&hasU)return'INVALID';
+  if(hasU&&/^[AUGCN]+$/.test(seq))return'RNA';
+  if(/^[ATGCN]+$/.test(seq))return'DNA';
+  return'INVALID';
+}
+
+/* ── TRANSCRIPTION ───────────────────────────────────── */
+function transcribe(seq,strandMode){
+  const COMP={A:'T',T:'A',G:'C',C:'G',N:'N'};
+  let working=seq;
+  if(strandMode==='template'){
+    working=seq.split('').reverse().map(b=>COMP[b]||b).join('');
+  }
+  return working.replace(/T/g,'U');
+}
+
+/* ── TRANSLATION ─────────────────────────────────────── */
+function translateMRNA(mrna){
+  const codons=[]; let inORF=false;
+  for(let i=0;i<=mrna.length-3;i+=3){
+    const trip=mrna.slice(i,i+3); if(trip.length<3)break;
+    if(trip===START)inORF=true;
+    if(!inORF){codons.push({codon:trip,aaName:'—',three:'—',one:'-',isStart:false,isStop:false,inORF:false});continue;}
+    if(STOPS.has(trip)){codons.push({codon:trip,aaName:'STOP',three:'Stop',one:'*',isStart:false,isStop:true,inORF:true});break;}
+    const entry=CODEX[trip];
+    codons.push({codon:trip,aaName:entry?entry[0]:'Unknown',three:entry?entry[1]:'???',one:entry?entry[2]:'?',
+      isStart:trip===START,isStop:false,inORF:true});
+  }
+  return codons;
+}
+
+/* ── PROTEIN ANALYSIS ────────────────────────────────── */
+function analyseProtein(chain){
+  if(!chain.length)return null;
+  const seq=chain.map(a=>a.one).join('');
+  const counts={};
+  for(const a of chain)counts[a.three]=(counts[a.three]||0)+1;
+  const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const pos=new Set(['Arg','Lys','His']),neg=new Set(['Asp','Glu']),hyd=new Set(['Ala','Val','Ile','Leu','Met','Phe','Trp','Pro']);
+  let pc=0,nc=0,hc=0;
+  for(const a of chain){if(pos.has(a.three))pc++;if(neg.has(a.three))nc++;if(hyd.has(a.three))hc++;}
+  return{seq,length:chain.length,sorted,hydro:((hc/chain.length)*100).toFixed(1),
+    charge:pc-nc,chargeLabel:(pc-nc)>0?`+${pc-nc} (Basic)`:(pc-nc)<0?`${pc-nc} (Acidic)`:'0 (Neutral)'};
+}
+
+/* ── RENDER HELPERS ──────────────────────────────────── */
+function seqStrip(label,seq,accentColor=''){
+  const c=accentColor?`border-color:${accentColor}33;`:'';
+  const labelStyle=accentColor?`style="color:${accentColor}"`:'';
+  return`<div class="sstrip" style="${c}">
+    <div class="sstrip-lbl" ${labelStyle}>${label} · ${seq.length} nt</div>
+    <div class="sstrip-val">${ntColor(seq.slice(0,300))}${seq.length>300?'<span style="color:var(--mute)">…</span>':''}</div>
+  </div>`;
+}
+function xplainBox(mode,title,html){
+  return`<div class="xplain ${mode}"><div class="xlbl">// ${title}</div><div class="xtxt">${html}</div></div>`;
+}
+
+/* ── UNIPROT LOOKUP ──────────────────────────────────── */
+async function fetchUniProt(seq){
+  const q=encodeURIComponent(seq.slice(0,50));
+  try{
+    const r=await fetch(`https://rest.uniprot.org/uniprotkb/search?query=${q}&format=json&size=3&fields=accession,protein_name,organism_name,cc_function`);
+    if(!r.ok)throw new Error(r.status);
+    const d=await r.json();
+    return(d.results||[]).map(e=>({
+      name:e.proteinDescription?.recommendedName?.fullName?.value||e.proteinDescription?.submittedName?.[0]?.fullName?.value||'Unknown Protein',
+      organism:e.organism?.scientificName||'Unknown',
+      acc:e.primaryAccession||'—',
+      fn:e.comments?.find(c=>c.commentType==='FUNCTION')?.texts?.[0]?.value||'No functional annotation available.',
+    }));
+  }catch{return null;}
+}
+
+/* ── MAIN PIPELINE ───────────────────────────────────── */
+async function runPipeline(){
+  const seq=hfx.rawSeq;
+  if(!seq||seq.length<3)return;
+  hfx.seqKind=detectKind(seq);
+
+  /* STEP 02 */
+  $('p-detect').classList.add('on');
+  renderDetect(seq,hfx.seqKind);
+  dotLive('st-detect');
+  pnMark('detect',hfx.seqKind==='INVALID'?'':'done');
+  if(hfx.seqKind==='INVALID')return;
+
+  /* STEP 02b — strand choice for DNA */
+  if(hfx.seqKind==='DNA'){
+    $('p-strand').classList.add('on');
+    hfx.strandMode=null;
+    return; // continues after user picks strand
+  }
+  continueFromTranscription();
+}
+
+function pickStrand(mode){
+  hfx.strandMode=mode;
+  $('so-nt').classList.toggle('picked',mode==='non-template');
+  $('so-t').classList.toggle('picked',mode==='template');
+  dotLive('st-strand');
+  pnMark('detect','done');
+  continueFromTranscription();
+}
+
+async function continueFromTranscription(){
+  const seq=hfx.rawSeq;
+
+  /* STEP 03 */
+  const mrna=hfx.seqKind==='DNA'?transcribe(seq,hfx.strandMode):seq;
+  hfx.mRNASeq=mrna;
+  $('p-tx').classList.add('on');
+  renderTx(seq,mrna,hfx.seqKind,hfx.strandMode);
+  dotLive('st-tx'); pnMark('tx','done');
+
+  /* STEP 04 */
+  const codons=translateMRNA(mrna);
+  hfx.codonMap=codons;
+  $('p-tl').classList.add('on');
+  renderTl(codons); dotLive('st-tl'); pnMark('tl','done');
+
+  /* STEP 05 */
+  const chain=codons.filter(c=>c.inORF&&!c.isStop);
+  hfx.aaArray=chain;
+  $('p-aa').classList.add('on');
+  renderAA(chain); dotLive('st-aa'); pnMark('aa','done');
+
+  /* STEP 06 */
+  $('p-prot').classList.add('on');
+  dotSpin('st-prot'); pnMark('prot','active');
+  renderProtShell(chain);
+  const dbRes=await fetchUniProt(chain.map(a=>a.one).join(''));
+  renderDB(dbRes);
+  dotLive('st-prot'); pnMark('prot','done');
+
+  hfx.analysisReady=true;
+  $('pdf-btn').disabled=false;
+
+  setTimeout(()=>$('p-detect').scrollIntoView({behavior:'smooth',block:'start'}),150);
+}
+
+/* ── STEP 02 RENDER ──────────────────────────────────── */
+function renderDetect(seq,kind){
+  const b=$('b-detect');
+  const cls=kind==='DNA'?'dna':kind==='RNA'?'rna':'bad';
+  const lbl=kind==='DNA'?'⬡ DNA CONFIRMED':kind==='RNA'?'⬡ RNA CONFIRMED':'⚠ INVALID';
+  const expl=kind==='DNA'
+    ?`HelixForge found only <strong>A, T, G, C</strong> and no U — confirming <strong>DNA</strong>. DNA stores the cell's hereditary information inside the nucleus and forms the famous double helix.`
+    :kind==='RNA'
+    ?`The presence of <strong>U (uracil)</strong> and absence of T confirms <strong>RNA</strong> — most likely messenger RNA (mRNA) ready for ribosomal translation.`
+    :`Characters outside the DNA/RNA alphabets were detected. Check for typos and resubmit.`;
+  b.innerHTML=`
+    <div class="verdict ${cls}"><div class="vdot"></div>${lbl}</div>
+    ${kind!=='INVALID'?seqStrip(`// INPUT · ${kind}`,seq):''}
+    ${xplainBox(kind==='RNA'?'rna':'','How Detection Works',expl)}`;
+}
+
+/* ── STEP 03 RENDER ──────────────────────────────────── */
+function renderTx(inputSeq,mrna,kind,strand){
+  let expl=kind==='DNA'
+    ?(strand==='template'
+      ?`<strong>Template strand provided.</strong> HelixForge reversed it (3′→5′ becomes 5′→3′) then complemented each base (A↔U, T↔A, G↔C, C↔G) to produce the mRNA below — exactly what RNA polymerase does in the nucleus.`
+      :`<strong>Non-template (coding) strand provided.</strong> This strand is already identical in sequence to the mRNA — HelixForge simply swapped every T→U.`)
+    :`Input was already RNA; <strong>no transcription step required.</strong>`;
+  $('b-tx').innerHTML=
+    (kind==='DNA'?seqStrip(`// INPUT · ${strand} strand`,inputSeq):'')
+    +seqStrip('// mRNA PRODUCED',mrna,'#ff6b35')
+    +xplainBox('rna','What Is Transcription?',
+      `Transcription copies a gene from the DNA double helix into a mobile mRNA strand. RNA polymerase unzips the helix, reads the template strand 3′→5′, and assembles a complementary mRNA running 5′→3′. The mRNA then leaves the nucleus to be translated at the ribosome.<br><br>${expl}`);
+}
+
+/* ── STEP 04 RENDER ──────────────────────────────────── */
+function renderTl(codons){
+  const grid=codons.map(c=>{
+    let cls='codon-cell';
+    if(c.isStart)cls+=' cs'; if(c.isStop)cls+=' cx'; if(!c.inORF)cls+=' off';
+    return`<div class="${cls}">
+      <div class="ctri">${ntColor(c.codon)}</div>
+      <div class="cname">${c.aaName}</div>
+      <div class="cabb">${c.three} · ${c.one}</div>
+    </div>`;
+  }).join('');
+  $('b-tl').innerHTML=`
+    <p class="sec-lbl">// ${codons.length} codons · <span style="color:var(--amino)">■ START</span> &nbsp;<span style="color:var(--err)">■ STOP</span></p>
+    <div class="codon-grid">${grid}</div>
+    ${xplainBox('rna','What Is Translation?','The ribosome reads the mRNA three bases at a time (a <strong>codon</strong>). Each codon maps to one amino acid. Translation begins at <strong>AUG</strong> (Methionine) and ends at a stop codon (UAA / UAG / UGA). The amino acids are linked in sequence to form a polypeptide chain — the raw material of all proteins.')}`;
+}
+
+/* ── STEP 05 RENDER ──────────────────────────────────── */
+function renderAA(chain){
+  if(!chain.length){
+    $('b-aa').innerHTML='<div class="errbox">⚠ No open reading frame found — no amino acids produced.</div>';return;
+  }
+  const beads=chain.map(a=>`
+    <div class="aa-bead" title="${a.aaName}">
+      <div class="ab3">${a.three}</div>
+      <div class="ab1">${a.one}</div>
+      <div class="abf">${a.aaName}</div>
+    </div>`).join('');
+  const oneLetter=chain.map(a=>a.one).join('');
+  $('b-aa').innerHTML=`
+    <p class="sec-lbl">// ${chain.length} amino acids</p>
+    <div class="aa-chain">${beads}</div>
+    <div class="divider"></div>
+    <p class="sec-lbl" style="margin-top:.5rem">// Single-letter sequence</p>
+    <div class="sstrip">
+      <div class="sstrip-val" style="color:var(--amino);letter-spacing:.15em">${oneLetter}</div>
+    </div>
+    ${xplainBox('aa','Amino Acids & Polypeptide Chain','There are <strong>20 amino acids</strong>, each with distinct chemical properties. The ribosome strings them together in the order dictated by the mRNA codons. This chain — a <strong>polypeptide</strong> — then folds spontaneously into a three-dimensional protein driven by hydrophobic collapse, hydrogen bonds, and electrostatic forces. The sequence of amino acids fully determines the final 3D shape, and that shape determines the protein\'s function.')}`;
+}
+
+/* ── STEP 06 RENDER SHELL ────────────────────────────── */
+function renderProtShell(chain){
+  const info=analyseProtein(chain);
+  if(!info){$('b-prot').innerHTML='<div class="errbox">⚠ No protein produced.</div>';return;}
+  const top=info.sorted.slice(0,3).map(([aa,n])=>`${aa} (${n}×)`).join(', ');
+  $('b-prot').innerHTML=`
+    <p class="sec-lbl">// Protein Composition</p>
+    <div class="pstat-grid">
+      <div class="pstat"><div class="pslbl">Chain Length</div><div class="psval">${info.length} aa</div></div>
+      <div class="pstat"><div class="pslbl">Hydrophobicity</div><div class="psval">${info.hydro}%</div></div>
+      <div class="pstat"><div class="pslbl">Est. Charge</div><div class="psval" style="font-size:.85rem">${info.chargeLabel}</div></div>
+      <div class="pstat"><div class="pslbl">Most Abundant</div><div class="psval" style="font-size:.78rem">${top}</div></div>
+    </div>
+    <div class="divider"></div>
+    <p class="sec-lbl">// UniProt Database Lookup</p>
+    <div id="db-zone" style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--mute);padding:.4rem 0">
+      <span class="spinner"></span> Querying UniProt REST API…
+    </div>
+    ${xplainBox('prot','What Is a Protein?','A protein is a polypeptide that has <strong>folded</strong> into a precise 3D shape. That shape is everything — it determines whether the protein is an enzyme, a structural scaffold, a hormone, a transporter, or an antibody. <strong>UniProt</strong> is the world\'s largest curated protein database; a match tells us the real-world identity, organism of origin, and biological function of your sequence.')}`;
+}
+
+/* ── STEP 06 DB RESULTS ──────────────────────────────── */
+function renderDB(results){
+  const zone=$('db-zone'); if(!zone)return;
+  if(!results||!results.length){
+    zone.innerHTML=`<div class="errbox">⚠ No UniProt match returned — common for short or synthetic sequences. Try BLAST at <a href="https://blast.ncbi.nlm.nih.gov" target="_blank" style="color:var(--dna)">blast.ncbi.nlm.nih.gov</a></div>`;
+    return;
+  }
+  zone.innerHTML=results.map(r=>`
+    <div class="db-card">
+      <div class="db-tag">UNIPROT · ${r.acc}</div>
+      <div class="db-name">${r.name}</div>
+      <div class="db-org">${r.organism}</div>
+      <div class="db-desc">${r.fn.slice(0,280)}${r.fn.length>280?'…':''}</div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   GC STATS ENGINE
+══════════════════════════════════════════════════════ */
+function runGCStats(){
+  const raw=$('gc-input').value.toUpperCase().replace(/\s+/g,'');
+  const out=$('gc-out'); if(!raw){out.innerHTML='';return;}
+  const kind=detectKind(raw);
+  const total=raw.length;
+  const freqMap={};
+  for(const b of raw)freqMap[b]=(freqMap[b]||0)+1;
+  const A=freqMap['A']||0,T=freqMap['T']||0,G=freqMap['G']||0,C=freqMap['C']||0,U=freqMap['U']||0;
+  const GC=((G+C)/total*100).toFixed(1);
+  const AT=((A+(T||U))/total*100).toFixed(1);
+  const GCratio=C>0?(G/C).toFixed(2):'∞';
+  const Tm=kind==='DNA'?(69.3+0.41*parseFloat(GC)-675/total).toFixed(1):'N/A (RNA)';
+  const dinucs={};
+  for(let i=0;i<raw.length-1;i++){const d=raw[i]+raw[i+1];dinucs[d]=(dinucs[d]||0)+1;}
+  const topDinuc=Object.entries(dinucs).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([d,n])=>`${d}(${n})`).join(' · ');
+
+  const bars=['A','T','G','C','U'].filter(b=>freqMap[b]>0).map(b=>{
+    const cnt=freqMap[b]||0;const pct=(cnt/total*100).toFixed(1);
+    const col=b==='A'?'#00e5ff':b==='T'?'#ff6b35':b==='G'?'#a8ff78':b==='C'?'#ffd700':'#ff8c42';
+    return`<div class="gc-card">
+      <div class="gc-lbl">${b} — ${b==='A'?'Adenine':b==='T'?'Thymine':b==='G'?'Guanine':b==='C'?'Cytosine':'Uracil'}</div>
+      <div class="gc-val" style="color:${col}">${cnt} <span style="font-size:.7rem;color:var(--mute)">(${pct}%)</span></div>
+      <div class="gc-bar-wrap"><div class="gc-bar" style="width:${pct}%;background:${col}"></div></div>
+    </div>`;}).join('');
+
+  out.innerHTML=`
+    <div class="verdict ${kind==='DNA'?'dna':kind==='RNA'?'rna':'bad'}">
+      <div class="vdot"></div>${kind==='INVALID'?'⚠ INVALID':('⬡ '+kind+' · '+total+' nt')}
+    </div>
+    <div class="gc-grid">${bars}
+      <div class="gc-card"><div class="gc-lbl">GC Content</div><div class="gc-val">${GC}%</div></div>
+      <div class="gc-card"><div class="gc-lbl">AT Content</div><div class="gc-val">${AT}%</div></div>
+      <div class="gc-card"><div class="gc-lbl">G/C Ratio</div><div class="gc-val">${GCratio}</div></div>
+      <div class="gc-card"><div class="gc-lbl">Melting Temp (Tm)</div><div class="gc-val" style="font-size:.85rem">${Tm}°C</div></div>
+    </div>
+    <div class="sec-lbl" style="margin-top:.5rem">// Top Dinucleotides</div>
+    <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--prose);letter-spacing:.08em">${topDinuc||'—'}</div>
+    ${xplainBox('','GC Content — Why It Matters','<strong>GC content</strong> (the fraction of G and C bases) is one of the most important metrics in bioinformatics. GC pairs are held together by <strong>three hydrogen bonds</strong> vs two for AT pairs, making GC-rich sequences more thermally stable. High GC content means a higher <strong>melting temperature (Tm)</strong> — the temperature at which the two DNA strands separate. This affects PCR primer design, CRISPR guide RNA effectiveness, and predicts whether a region of the genome is likely to be gene-rich (GC-rich regions are typically gene-dense in vertebrates).')}`;
+}
+
+/* ══════════════════════════════════════════════════════
+   BLAST / SMITH-WATERMAN ENGINE
+══════════════════════════════════════════════════════ */
+const SW_MATCH=2, SW_MISMATCH=-1, SW_GAP=-2;
+
+function smithWaterman(seqA,seqB){
+  const m=seqA.length,n=seqB.length;
+  const H=Array.from({length:m+1},()=>new Int16Array(n+1));
+  const BT=Array.from({length:m+1},()=>new Uint8Array(n+1)); // 1=diag,2=up,3=left
+  let maxScore=0,maxI=0,maxJ=0;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const match=seqA[i-1]===seqB[j-1]?SW_MATCH:SW_MISMATCH;
+      const diag=H[i-1][j-1]+match;
+      const up  =H[i-1][j]+SW_GAP;
+      const left=H[i][j-1]+SW_GAP;
+      const best=Math.max(0,diag,up,left);
+      H[i][j]=best;
+      if(best===diag&&best>0)BT[i][j]=1;
+      else if(best===up&&best>0)BT[i][j]=2;
+      else if(best===left&&best>0)BT[i][j]=3;
+      if(best>maxScore){maxScore=best;maxI=i;maxJ=j;}
+    }
+  }
+  // Traceback
+  let alignA='',alignB='',matchStr='',i=maxI,j=maxJ;
+  while(i>0&&j>0&&H[i][j]>0){
+    const d=BT[i][j];
+    if(d===1){alignA=seqA[i-1]+alignA;alignB=seqB[j-1]+alignB;
+      matchStr=(seqA[i-1]===seqB[j-1]?'|':':')+ matchStr;i--;j--;}
+    else if(d===2){alignA=seqA[i-1]+alignA;alignB='-'+alignB;matchStr=' '+matchStr;i--;}
+    else{alignA='-'+alignA;alignB=seqB[j-1]+alignB;matchStr=' '+matchStr;j--;}
+  }
+  const idents=[...matchStr].filter(c=>c==='|').length;
+  const gaps=[...alignA,...alignB].filter(c=>c==='-').length;
+  const pctId=alignA.length>0?(idents/alignA.length*100).toFixed(1):0;
+  return{alignA,alignB,matchStr,score:maxScore,pctId,idents,gaps,length:alignA.length};
+}
+
+function runBLAST(){
+  const a=$('blast-a').value.toUpperCase().replace(/\s+/g,'');
+  const b=$('blast-b').value.toUpperCase().replace(/\s+/g,'');
+  const out=$('blast-out');
+  if(!a||!b){out.innerHTML='<div class="errbox">⚠ Both sequences required.</div>';return;}
+  if(a.length>2000||b.length>2000){out.innerHTML='<div class="errbox">⚠ Max 2000 nt per sequence for local alignment.</div>';return;}
+
+  out.innerHTML=`<div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--mute)"><span class="spinner"></span> Running Smith-Waterman…</div>`;
+
+  setTimeout(()=>{
+    const res=smithWaterman(a,b);
+    const identClass=parseFloat(res.pctId)>=80?'hi':parseFloat(res.pctId)>=50?'mid':'lo';
+    const CHUNK=60;
+    let alignRows='';
+    for(let k=0;k<res.alignA.length;k+=CHUNK){
+      const slA=res.alignA.slice(k,k+CHUNK);
+      const slM=res.matchStr.slice(k,k+CHUNK);
+      const slB=res.alignB.slice(k,k+CHUNK);
+      const colA=slA.split('').map(c=>c==='-'?`<span class="blast-gap">-</span>`:`<span class="n${c}">${c}</span>`).join('');
+      const colB=slB.split('').map(c=>c==='-'?`<span class="blast-gap">-</span>`:`<span class="n${c}">${c}</span>`).join('');
+      const colM=slM.split('').map(c=>c==='|'?`<span class="blast-match">|</span>`:c===':'?`<span style="color:var(--warn)">:</span>`:`<span style="color:var(--mute)"> </span>`).join('');
+      alignRows+=`
+        <div class="blast-row"><span class="blast-label">Seq A ${k+1}–${k+slA.length}</span><span class="blast-seq">${colA}</span></div>
+        <div class="blast-row"><span class="blast-label"></span><span class="blast-seq">${colM}</span></div>
+        <div class="blast-row"><span class="blast-label">Seq B ${k+1}–${k+slB.length}</span><span class="blast-seq">${colB}</span></div>
+        <div style="height:.6rem"></div>`;
+    }
+    out.innerHTML=`
+      <div class="blast-info">
+        <span class="blast-badge ${identClass}">Identity: ${res.pctId}%</span>
+        <span class="blast-badge">Score: ${res.score}</span>
+        <span class="blast-badge">Length: ${res.length} nt</span>
+        <span class="blast-badge">Identities: ${res.idents}</span>
+        <span class="blast-badge">Gaps: ${res.gaps}</span>
+      </div>
+      <div class="blast-wrap">${alignRows}</div>
+      ${xplainBox('aa','Reading the Alignment','<strong>|</strong> = identical base match &nbsp;·&nbsp; <strong>:</strong> = partial match &nbsp;·&nbsp; <strong>-</strong> = gap (insertion/deletion). The <strong>Smith-Waterman algorithm</strong> finds the best local alignment between two sequences — the same scoring strategy used by NCBI BLAST. A high identity % (≥80%) suggests the sequences are from the same gene or closely related species. The alignment score is based on match=+2, mismatch=−1, gap=−2.')}`;
+  },50);
+}
+
+function loadBlastDemo(){
+  $('blast-a').value=DEMO_DNA.slice(0,120);
+  $('blast-b').value=DEMO_DNA.slice(10,130).replace(/A/g,'G').replace(/T/g,'C').slice(0,120);
+}
+
+/* ══════════════════════════════════════════════════════
+   3D HELIX (Three.js)
+══════════════════════════════════════════════════════ */
+let helixScene,helixCamera,helixRenderer,helixGroup,helixRAF;
+let helixRotating=true,helixInited=false;
+let helixIsDragging=false,helixLastX=0,helixLastY=0;
+
+function initHelix(){
+  if(helixInited)return;
+  helixInited=true;
+  const canvas=$('helixCanvas');
+  const wrap=canvas.parentElement;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+
+  helixScene=new THREE.Scene();
+  helixCamera=new THREE.PerspectiveCamera(50,W/H,.1,500);
+  helixCamera.position.set(0,0,38);
+
+  helixRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  helixRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  helixRenderer.setSize(W,H);
+  helixRenderer.setClearColor(0x000000,0);
+
+  // Lights
+  helixScene.add(new THREE.AmbientLight(0xffffff,.6));
+  const dLight=new THREE.DirectionalLight(0xffffff,.8);
+  dLight.position.set(5,10,8);
+  helixScene.add(dLight);
+  const pLight=new THREE.PointLight(0x00e5ff,.5,60);
+  pLight.position.set(-10,5,10);
+  helixScene.add(pLight);
+
+  helixGroup=new THREE.Group();
+  helixScene.add(helixGroup);
+
+  const seq=hfx.rawSeq&&hfx.rawSeq.length>10?hfx.rawSeq:DEMO_DNA;
+  const dnaSeq=seq.slice(0,36).replace(/U/g,'T'); // ensure DNA for helix
+
+  const BASE_COLORS={A:0x00e5ff,T:0xff6b35,G:0xa8ff78,C:0xffd700,N:0x888888};
+  const COMP={A:'T',T:'A',G:'C',C:'G',N:'N'};
+  const backboneMat=new THREE.MeshStandardMaterial({color:0x4a6070,roughness:.7,metalness:.1});
+
+  const totalBP=dnaSeq.length;
+  const helixRad=4, risePerBP=1.6, turnsPerBP=1/10.5;
+  const backbonePts1=[],backbonePts2=[];
+
+  for(let idx=0;idx<totalBP;idx++){
+    const t=idx*turnsPerBP*Math.PI*2;
+    const y=(idx-totalBP/2)*risePerBP;
+    const x1=helixRad*Math.cos(t), z1=helixRad*Math.sin(t);
+    const x2=helixRad*Math.cos(t+Math.PI), z2=helixRad*Math.sin(t+Math.PI);
+    backbonePts1.push(new THREE.Vector3(x1,y,z1));
+    backbonePts2.push(new THREE.Vector3(x2,y,z2));
+
+    // Base sphere strand 1
+    const base1=dnaSeq[idx]||'N';
+    const bMat1=new THREE.MeshStandardMaterial({color:BASE_COLORS[base1]||0x888888,roughness:.4,metalness:.2});
+    const bGeo=new THREE.SphereGeometry(.48,12,12);
+    const bMesh1=new THREE.Mesh(bGeo,bMat1);
+    bMesh1.position.set(x1*.6,y,z1*.6);
+    helixGroup.add(bMesh1);
+
+    // Base sphere strand 2
+    const base2=COMP[base1]||'N';
+    const bMat2=new THREE.MeshStandardMaterial({color:BASE_COLORS[base2]||0x888888,roughness:.4,metalness:.2});
+    const bMesh2=new THREE.Mesh(bGeo.clone(),bMat2);
+    bMesh2.position.set(x2*.6,y,z2*.6);
+    helixGroup.add(bMesh2);
+
+    // Rungs (base pair connectors) using CylinderGeometry
+    const rungDir=new THREE.Vector3(x2*.6-x1*.6,0,z2*.6-z1*.6);
+    const rungLen=rungDir.length();
+    const rungMid=new THREE.Vector3((x1+x2)*.3,y,(z1+z2)*.3);
+    const rungGeo=new THREE.CylinderGeometry(.12,.12,rungLen,6);
+    const rungMesh=new THREE.Mesh(rungGeo,new THREE.MeshStandardMaterial({color:0x2a3d50,roughness:.8}));
+    rungMesh.position.copy(rungMid);
+    // Orient cylinder along rung direction
+    const axis=new THREE.Vector3(0,1,0);
+    const normDir=rungDir.clone().normalize();
+    const q=new THREE.Quaternion().setFromUnitVectors(axis,new THREE.Vector3(normDir.x,0,normDir.z).normalize());
+    rungMesh.quaternion.copy(q);
+    rungMesh.rotateZ(Math.PI/2);
+    helixGroup.add(rungMesh);
+  }
+
+  // Backbone tubes via TubeGeometry
+  function makeTube(pts){
+    const curve=new THREE.CatmullRomCurve3(pts);
+    const geo=new THREE.TubeGeometry(curve,totalBP*3,.22,6,false);
+    return new THREE.Mesh(geo,backboneMat);
+  }
+  helixGroup.add(makeTube(backbonePts1));
+  helixGroup.add(makeTube(backbonePts2));
+
+  // Mouse controls
+  canvas.addEventListener('mousedown',e=>{helixIsDragging=true;helixLastX=e.clientX;helixLastY=e.clientY;helixRotating=false});
+  window.addEventListener('mousemove',e=>{
+    if(!helixIsDragging)return;
+    helixGroup.rotation.y+=(e.clientX-helixLastX)*0.01;
+    helixGroup.rotation.x+=(e.clientY-helixLastY)*0.005;
+    helixLastX=e.clientX;helixLastY=e.clientY;
+  });
+  window.addEventListener('mouseup',()=>{helixIsDragging=false});
+  canvas.addEventListener('wheel',e=>{helixCamera.position.z=Math.max(10,Math.min(80,helixCamera.position.z+e.deltaY*.05))},{passive:true});
+
+  function animate(){
+    helixRAF=requestAnimationFrame(animate);
+    if(helixRotating)helixGroup.rotation.y+=.004;
+    helixRenderer.render(helixScene,helixCamera);
+  }
+  animate();
+
+  window.addEventListener('resize',()=>{
+    const nW=wrap.clientWidth,nH=wrap.clientHeight;
+    helixCamera.aspect=nW/nH;helixCamera.updateProjectionMatrix();
+    helixRenderer.setSize(nW,nH);
+  });
+}
+
+function helixAutoRotate(){helixRotating=!helixRotating}
+function helixReset(){
+  if(helixGroup){helixGroup.rotation.set(0,0,0);}
+  if(helixCamera){helixCamera.position.set(0,0,38);}
+  helixRotating=true;
+}
+
+/* ══════════════════════════════════════════════════════
+   PDF EXPORT
+══════════════════════════════════════════════════════ */
+function exportPDF(){
+  if(!hfx.analysisReady){alert('Run an analysis first!');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,MARGIN=18,LINE=6.5;
+  let y=MARGIN;
+  const pageH=297;
+
+  function checkPage(needed=LINE){if(y+needed>pageH-MARGIN){doc.addPage();y=MARGIN;}}
+
+  // Header bar
+  doc.setFillColor(6,11,16);doc.rect(0,0,W,22,'F');
+  doc.setTextColor(0,229,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+  doc.text('HelixForge v2',MARGIN,14);
+  doc.setFontSize(8);doc.setTextColor(120,160,180);
+  doc.text('Sequence Intelligence Engine — Analysis Report',MARGIN,19.5);
+  doc.setFontSize(8);doc.setTextColor(80,100,120);
+  doc.text(new Date().toLocaleString(),W-MARGIN,14,{align:'right'});
+  y=30;
+
+  function heading(txt,r=0,g=229,b=255){
+    checkPage(10);
+    doc.setFillColor(r,g,b);doc.rect(MARGIN,y,W-MARGIN*2,.8,'F');y+=3;
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(r,g,b);
+    doc.text(txt,MARGIN,y);y+=LINE;
+    doc.setTextColor(180,200,210);doc.setFont('helvetica','normal');doc.setFontSize(9);
+  }
+  function row(label,value){
+    checkPage();
+    doc.setFont('helvetica','bold');doc.setTextColor(120,160,180);doc.setFontSize(8.5);
+    doc.text(label+':',MARGIN,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(220,235,245);
+    doc.text(String(value),MARGIN+48,y);y+=LINE;
+  }
+  function para(txt){
+    checkPage(20);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(150,175,195);
+    const lines=doc.splitTextToSize(txt,W-MARGIN*2);
+    lines.forEach(l=>{checkPage();doc.text(l,MARGIN,y);y+=5;});y+=2;
+  }
+
+  // Section 1 — Detection
+  heading('STEP 01 — SEQUENCE DETECTION');
+  row('Sequence Type',hfx.seqKind);
+  row('Total Length',hfx.rawSeq.length+' nt');
+  row('Input (first 60 nt)',hfx.rawSeq.slice(0,60)+(hfx.rawSeq.length>60?'…':''));
+  y+=2;
+
+  // Section 2 — Transcription
+  heading('STEP 02 — TRANSCRIPTION',255,107,53);
+  if(hfx.seqKind==='DNA')row('Strand Mode',hfx.strandMode||'—');
+  row('mRNA Length',hfx.mRNASeq.length+' nt');
+  row('mRNA (first 60 nt)',hfx.mRNASeq.slice(0,60)+(hfx.mRNASeq.length>60?'…':''));
+  y+=2;
+
+  // Section 3 — Translation
+  heading('STEP 03 — TRANSLATION',168,255,120);
+  row('Total Codons',hfx.codonMap.length);
+  const orfCodons=hfx.codonMap.filter(c=>c.inORF&&!c.isStop);
+  row('Coding Codons (ORF)',orfCodons.length);
+  row('Has Stop Codon',hfx.codonMap.some(c=>c.isStop)?'Yes':'No (incomplete ORF)');
+  y+=2;
+
+  // Section 4 — Amino Acids
+  heading('STEP 04 — POLYPEPTIDE CHAIN',255,215,0);
+  const info=analyseProtein(hfx.aaArray);
+  row('Amino Acid Count',hfx.aaArray.length);
+  if(info){
+    row('Hydrophobicity',info.hydro+'%');
+    row('Estimated Charge',info.chargeLabel);
+    row('Most Abundant',info.sorted.slice(0,3).map(([aa,n])=>`${aa}(${n})`).join(', '));
+    row('Protein Sequence (first 60)',info.seq.slice(0,60)+(info.seq.length>60?'…':''));
+  }
+  y+=4;
+
+  // GC stats
+  heading('GC CONTENT ANALYSIS',0,200,140);
+  const gcSeq=hfx.rawSeq;
+  const gCount=(gcSeq.match(/G/g)||[]).length;
+  const cCount=(gcSeq.match(/C/g)||[]).length;
+  const gcPct=((gCount+cCount)/gcSeq.length*100).toFixed(1);
+  row('GC Content',gcPct+'%');
+  row('AT Content',(100-parseFloat(gcPct)).toFixed(1)+'%');
+  if(hfx.seqKind==='DNA'){
+    const Tm=(69.3+0.41*parseFloat(gcPct)-675/gcSeq.length).toFixed(1);
+    row('Est. Melting Temp',Tm+'°C');
+  }
+  y+=4;
+
+  // Footer
+  doc.setFillColor(6,11,16);doc.rect(0,pageH-12,W,12,'F');
+  doc.setFontSize(7);doc.setTextColor(60,90,110);
+  doc.text('HelixForge v2 — CSC 442 Computational Biology · Generated by HelixForge Sequence Intelligence Engine',W/2,pageH-5,{align:'center'});
+
+  doc.save(`HelixForge_Report_${Date.now()}.pdf`);
+}
+</script>
+</body>
+</html>
